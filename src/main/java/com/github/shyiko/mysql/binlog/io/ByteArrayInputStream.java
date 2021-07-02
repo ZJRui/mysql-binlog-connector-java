@@ -199,6 +199,9 @@ public class ByteArrayInputStream extends InputStream {
             }
             blockLength--;
         }
+        //InputStream的read方法，这个输入流读到了结尾则会返回-1.可以根据-1来判断是否达到流的末尾
+        //从输入流中读取数据的下一个字节。值字节作为0到255范围内的整数返回。如果由于到达流的末尾而没有可用的字节，则返回值-1。此方法阻塞，直到输入数据可用、检测到流的结束或抛出异常。
+        //子类必须提供此方法的实现。
         return inputStream.read();
     }
 

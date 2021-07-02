@@ -1,0 +1,13 @@
+2021-06-27 22:42:58.890 DEBUG 27176 --- [-localhost:3306] i.debezium.connector.mysql.BinlogReader  : A communication failure event arrived
+
+java.io.EOFException: null
+	at com.github.shyiko.mysql.binlog.io.ByteArrayInputStream.read(ByteArrayInputStream.java:190) ~[mysql-binlog-connector-java-0.13.0.jar:0.13.0]
+	at com.github.shyiko.mysql.binlog.io.ByteArrayInputStream.readInteger(ByteArrayInputStream.java:46) ~[mysql-binlog-connector-java-0.13.0.jar:0.13.0]
+	at com.github.shyiko.mysql.binlog.event.deserialization.EventHeaderV4Deserializer.deserialize(EventHeaderV4Deserializer.java:35) ~[mysql-binlog-connector-java-0.13.0.jar:0.13.0]
+	at com.github.shyiko.mysql.binlog.event.deserialization.EventHeaderV4Deserializer.deserialize(EventHeaderV4Deserializer.java:27) ~[mysql-binlog-connector-java-0.13.0.jar:0.13.0]
+	at com.github.shyiko.mysql.binlog.event.deserialization.EventDeserializer.nextEvent(EventDeserializer.java:179) ~[mysql-binlog-connector-java-0.13.0.jar:0.13.0]
+	at io.debezium.connector.mysql.BinlogReader$1.nextEvent(BinlogReader.java:187) ~[debezium-connector-mysql-0.8.3.Final.jar:0.8.3.Final]
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.listenForEventPackets(BinaryLogClient.java:890) [mysql-binlog-connector-java-0.13.0.jar:0.13.0]
+	at com.github.shyiko.mysql.binlog.BinaryLogClient.connect(BinaryLogClient.java:559) [mysql-binlog-connector-java-0.13.0.jar:0.13.0]
+	at com.github.shyiko.mysql.binlog.BinaryLogClient$7.run(BinaryLogClient.java:793) [mysql-binlog-connector-java-0.13.0.jar:0.13.0]
+	at java.lang.Thread.run(Thread.java:745) [na:1.8.0_31]

@@ -15,44 +15,14 @@
  */
 package com.github.shyiko.mysql.binlog;
 
-import com.github.shyiko.mysql.binlog.event.Event;
-import com.github.shyiko.mysql.binlog.event.EventHeader;
-import com.github.shyiko.mysql.binlog.event.EventHeaderV4;
-import com.github.shyiko.mysql.binlog.event.EventType;
-import com.github.shyiko.mysql.binlog.event.GtidEventData;
-import com.github.shyiko.mysql.binlog.event.QueryEventData;
-import com.github.shyiko.mysql.binlog.event.RotateEventData;
-import com.github.shyiko.mysql.binlog.event.deserialization.ChecksumType;
-import com.github.shyiko.mysql.binlog.event.deserialization.EventDataDeserializationException;
-import com.github.shyiko.mysql.binlog.event.deserialization.EventDataDeserializer;
-import com.github.shyiko.mysql.binlog.event.deserialization.EventDeserializer;
+import com.github.shyiko.mysql.binlog.event.*;
+import com.github.shyiko.mysql.binlog.event.deserialization.*;
 import com.github.shyiko.mysql.binlog.event.deserialization.EventDeserializer.EventDataWrapper;
-import com.github.shyiko.mysql.binlog.event.deserialization.GtidEventDataDeserializer;
-import com.github.shyiko.mysql.binlog.event.deserialization.QueryEventDataDeserializer;
-import com.github.shyiko.mysql.binlog.event.deserialization.RotateEventDataDeserializer;
 import com.github.shyiko.mysql.binlog.io.ByteArrayInputStream;
 import com.github.shyiko.mysql.binlog.jmx.BinaryLogClientMXBean;
-import com.github.shyiko.mysql.binlog.network.AuthenticationException;
-import com.github.shyiko.mysql.binlog.network.ClientCapabilities;
-import com.github.shyiko.mysql.binlog.network.DefaultSSLSocketFactory;
-import com.github.shyiko.mysql.binlog.network.SSLMode;
-import com.github.shyiko.mysql.binlog.network.SSLSocketFactory;
-import com.github.shyiko.mysql.binlog.network.ServerException;
-import com.github.shyiko.mysql.binlog.network.SocketFactory;
-import com.github.shyiko.mysql.binlog.network.TLSHostnameVerifier;
-import com.github.shyiko.mysql.binlog.network.protocol.ErrorPacket;
-import com.github.shyiko.mysql.binlog.network.protocol.GreetingPacket;
-import com.github.shyiko.mysql.binlog.network.protocol.Packet;
-import com.github.shyiko.mysql.binlog.network.protocol.PacketChannel;
-import com.github.shyiko.mysql.binlog.network.protocol.ResultSetRowPacket;
-import com.github.shyiko.mysql.binlog.network.protocol.command.AuthenticateCommand;
-import com.github.shyiko.mysql.binlog.network.protocol.command.AuthenticateNativePasswordCommand;
-import com.github.shyiko.mysql.binlog.network.protocol.command.Command;
-import com.github.shyiko.mysql.binlog.network.protocol.command.DumpBinaryLogCommand;
-import com.github.shyiko.mysql.binlog.network.protocol.command.DumpBinaryLogGtidCommand;
-import com.github.shyiko.mysql.binlog.network.protocol.command.PingCommand;
-import com.github.shyiko.mysql.binlog.network.protocol.command.QueryCommand;
-import com.github.shyiko.mysql.binlog.network.protocol.command.SSLRequestCommand;
+import com.github.shyiko.mysql.binlog.network.*;
+import com.github.shyiko.mysql.binlog.network.protocol.*;
+import com.github.shyiko.mysql.binlog.network.protocol.command.*;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -68,14 +38,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -97,10 +60,12 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
                 new X509TrustManager() {
 
                     @Override
-                    public void checkClientTrusted(X509Certificate[] x509Certificates, String s) { }
+                    public void checkClientTrusted(X509Certificate[] x509Certificates, String s) {
+                    }
 
                     @Override
-                    public void checkServerTrusted(X509Certificate[] x509Certificates, String s) { }
+                    public void checkServerTrusted(X509Certificate[] x509Certificates, String s) {
+                    }
 
                     @Override
                     public X509Certificate[] getAcceptedIssuers() {
@@ -165,6 +130,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * Alias for BinaryLogClient("localhost", 3306, &lt;no schema&gt; = null, username, password).
+     *
      * @see BinaryLogClient#BinaryLogClient(String, int, String, String, String)
      */
     public BinaryLogClient(String username, String password) {
@@ -173,6 +139,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * Alias for BinaryLogClient("localhost", 3306, schema, username, password).
+     *
      * @see BinaryLogClient#BinaryLogClient(String, int, String, String, String)
      */
     public BinaryLogClient(String schema, String username, String password) {
@@ -181,6 +148,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * Alias for BinaryLogClient(hostname, port, &lt;no schema&gt; = null, username, password).
+     *
      * @see BinaryLogClient#BinaryLogClient(String, int, String, String, String)
      */
     public BinaryLogClient(String hostname, int port, String username, String password) {
@@ -189,9 +157,9 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * @param hostname mysql server hostname
-     * @param port mysql server port
-     * @param schema database name, nullable. Note that this parameter has nothing to do with event filtering. It's
-     * used only during the authentication.
+     * @param port     mysql server port
+     * @param schema   database name, nullable. Note that this parameter has nothing to do with event filtering. It's
+     *                 used only during the authentication.
      * @param username login name
      * @param password password
      */
@@ -235,9 +203,9 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * @param serverId server id (in the range from 1 to 2^32 - 1). This value MUST be unique across whole replication
-     * group (that is, different from any other server id being used by any master or slave). Keep in mind that each
-     * binary log client (mysql-binlog-connector-java/BinaryLogClient, mysqlbinlog, etc) should be treated as a
-     * simplified slave and thus MUST also use a different server id.
+     *                 group (that is, different from any other server id being used by any master or slave). Keep in mind that each
+     *                 binary log client (mysql-binlog-connector-java/BinaryLogClient, mysqlbinlog, etc) should be treated as a
+     *                 simplified slave and thus MUST also use a different server id.
      * @see #getServerId()
      */
     public void setServerId(long serverId) {
@@ -255,12 +223,12 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * @param binlogFilename binary log filename.
-     * Special values are:
-     * <ul>
-     *   <li>null, which turns on automatic resolution (resulting in the last known binlog and position). This is what
-     * happens by default when you don't specify binary log filename explicitly.</li>
-     *   <li>"" (empty string), which instructs server to stream events starting from the oldest known binlog.</li>
-     * </ul>
+     *                       Special values are:
+     *                       <ul>
+     *                         <li>null, which turns on automatic resolution (resulting in the last known binlog and position). This is what
+     *                       happens by default when you don't specify binary log filename explicitly.</li>
+     *                         <li>"" (empty string), which instructs server to stream events starting from the oldest known binlog.</li>
+     *                       </ul>
      * @see #getBinlogFilename()
      */
     public void setBinlogFilename(String binlogFilename) {
@@ -303,11 +271,11 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * @param gtidSet GTID set (can be an empty string).
-     * <p>NOTE #1: Any value but null will switch BinaryLogClient into a GTID mode (this will also set binlogFilename
-     * to "" (provided it's null) forcing MySQL to send events starting from the oldest known binlog (keep in mind
-     * that connection will fail if gtid_purged is anything but empty (unless
-     * {@link #setGtidSetFallbackToPurged(boolean)} is set to true))).
-     * <p>NOTE #2: GTID set is automatically updated with each incoming GTID event (provided GTID mode is on).
+     *                <p>NOTE #1: Any value but null will switch BinaryLogClient into a GTID mode (this will also set binlogFilename
+     *                to "" (provided it's null) forcing MySQL to send events starting from the oldest known binlog (keep in mind
+     *                that connection will fail if gtid_purged is anything but empty (unless
+     *                {@link #setGtidSetFallbackToPurged(boolean)} is set to true))).
+     *                <p>NOTE #2: GTID set is automatically updated with each incoming GTID event (provided GTID mode is on).
      * @see #getGtidSet()
      * @see #setGtidSetFallbackToPurged(boolean)
      */
@@ -329,7 +297,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * @param gtidSetFallbackToPurged true if gtid_purged should be used as a fallback when gtidSet is set to "" and
-     * MySQL server has purged some of the binary logs, false otherwise (default).
+     *                                MySQL server has purged some of the binary logs, false otherwise (default).
      */
     public void setGtidSetFallbackToPurged(boolean gtidSetFallbackToPurged) {
         this.gtidSetFallbackToPurged = gtidSetFallbackToPurged;
@@ -344,8 +312,8 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * @param useBinlogFilenamePositionInGtidMode true if MySQL server should start streaming events from a given
-     * {@link #getBinlogFilename()} and {@link #getBinlogPosition()} instead of "the oldest known binlog" when
-     * {@link #getGtidSet()} is set, false otherwise (default).
+     *                                            {@link #getBinlogFilename()} and {@link #getBinlogPosition()} instead of "the oldest known binlog" when
+     *                                            {@link #getGtidSet()} is set, false otherwise (default).
      */
     public void setUseBinlogFilenamePositionInGtidMode(boolean useBinlogFilenamePositionInGtidMode) {
         this.useBinlogFilenamePositionInGtidMode = useBinlogFilenamePositionInGtidMode;
@@ -361,7 +329,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * @param keepAlive true if "keep alive" thread should be automatically started (recommended and true by default),
-     * false otherwise.
+     *                  false otherwise.
      * @see #isKeepAlive()
      * @see #setKeepAliveInterval(long)
      */
@@ -389,7 +357,6 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
     /**
      * @return "keep alive" connect timeout in milliseconds.
      * @see #setKeepAliveConnectTimeout(long)
-     *
      * @deprecated in favour of {@link #getConnectTimeout()}
      */
     public long getKeepAliveConnectTimeout() {
@@ -399,7 +366,6 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
     /**
      * @param connectTimeout "keep alive" connect timeout in milliseconds.
      * @see #getKeepAliveConnectTimeout()
-    *
      * @deprecated in favour of {@link #setConnectTimeout(long)}
      */
     public void setKeepAliveConnectTimeout(long connectTimeout) {
@@ -416,17 +382,16 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * @param heartbeatInterval heartbeat period in milliseconds.
-     * <p>
-     * If set (recommended)
-     * <ul>
-     * <li> HEARTBEAT event will be emitted every "heartbeatInterval".
-     * <li> if {@link #setKeepAlive(boolean)} is on then keepAlive thread will attempt to reconnect if no
-     *   HEARTBEAT events were received within {@link #setKeepAliveInterval(long)} (instead of trying to send
-     *   PING every {@link #setKeepAliveInterval(long)}, which is fundamentally flawed -
-     *   https://github.com/shyiko/mysql-binlog-connector-java/issues/118).
-     * </ul>
-     * Note that when used together with keepAlive heartbeatInterval MUST be set less than keepAliveInterval.
-     *
+     *                          <p>
+     *                          If set (recommended)
+     *                          <ul>
+     *                          <li> HEARTBEAT event will be emitted every "heartbeatInterval".
+     *                          <li> if {@link #setKeepAlive(boolean)} is on then keepAlive thread will attempt to reconnect if no
+     *                            HEARTBEAT events were received within {@link #setKeepAliveInterval(long)} (instead of trying to send
+     *                            PING every {@link #setKeepAliveInterval(long)}, which is fundamentally flawed -
+     *                            https://github.com/shyiko/mysql-binlog-connector-java/issues/118).
+     *                          </ul>
+     *                          Note that when used together with keepAlive heartbeatInterval MUST be set less than keepAliveInterval.
      * @see #getHeartbeatInterval()
      */
     public void setHeartbeatInterval(long heartbeatInterval) {
@@ -481,16 +446,22 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
     }
 
     /**
+     * BinaryLocgClinet 有两种连接方式，connect()连接后阻塞当前线程，接收处理数据
+     * <p>
+     * connect(Long  timeOut)启动另外一个线程 进行connect，然后当前线程使用countDownLatch.await被阻塞等待指定的时间。当时间一到就检查是否connect成功，
+     * <p>
      * Connect to the replication stream. Note that this method blocks until disconnected.
+     *
      * @throws AuthenticationException if authentication fails
-     * @throws ServerException if MySQL server responds with an error
-     * @throws IOException if anything goes wrong while trying to connect
+     * @throws ServerException         if MySQL server responds with an error
+     * @throws IOException             if anything goes wrong while trying to connect
      */
     public void connect() throws IOException {
         connectWithTimeout(connectTimeout);
     }
 
     private void connectWithTimeout(final long connectTimeout) throws IOException {
+        //finally中调用了 latch.countDown
         CountDownLatch latch = new CountDownLatch(1);
         boolean connected = false;
         try {
@@ -500,10 +471,17 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
                 if (connectLatch != null) {
                     throw new IllegalStateException("BinaryLogClient is already connected");
                 }
+                //注意 这里将CountDownLath赋值给了成员变量connectLatch
                 connectLatch = latch;
+                //step 2  //打开channel，方式是 创建socket，然后将socket放置到自定义实现的PacketChannel对象中
                 localChannel = openChannelToBinaryLogStream(connectTimeout);
                 channel = localChannel;
+                /**
+                 * 这里调用了isKeepAliveThreadRunning，在这个方法内部 会判断成员属性keepAliveThreadExecutor线程池是否为null
+                 * 并且这个线程池是否关闭了。 如果为null或者已经关闭了才会 执行spawnKeepAliveThread方法
+                 */
                 if (keepAlive && !isKeepAliveThreadRunning()) {
+                    //创建一个线程池 用于监听连接断开时 尝试重新建立连接
                     keepAliveThreadExecutor = spawnKeepAliveThread(connectTimeout);
                 }
             } finally {
@@ -514,10 +492,20 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
                 lifecycleListener.onConnect(this);
             }
             ensureEventDeserializerHasRequiredEDDs();
+            /**
+             * 阻塞监听读取数据.
+             * 在listen方法中，存在while循环，如果退出了while循环则表示socket连接断开。然后这个时候在finally中会调用disconnect
+             * 在disConnect方法中 通过waitForConnectToTerminate方法 在waitForconnectoToTerminate方法中调用了上面的CountDownLath的
+             * await方法
+             *
+             */
+
             listenForEventPackets(localChannel);
         } finally {
             connectLock.lock();
             try {
+                //如果执行到了这个地方则表示 上面退出了listenForEventPackets，这里调用了latch.countDown()
+                //并将成员变量connectLatch设置为null。 在isConnected方法中就是通过判断connectLath是否为null 来判断是否connect
                 latch.countDown();
                 if (latch == connectLatch) {
                     connectLatch = null;
@@ -539,6 +527,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
         try {
             try {
                 long start = System.currentTimeMillis();
+                //打开channel，方式是 创建socket，然后将socket放置到自定义实现的PacketChannel对象中
                 channel = openChannel(connectTimeout);
                 if (connectTimeout > 0 && !isKeepAliveThreadRunning()) {
                     cancelCloseChannel = scheduleCloseChannel(channel, connectTimeout -
@@ -667,7 +656,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
             byte[] bytes = Arrays.copyOfRange(initialHandshakePacket, 1, initialHandshakePacket.length);
             ErrorPacket errorPacket = new ErrorPacket(bytes);
             throw new ServerException(errorPacket.getErrorMessage(), errorPacket.getErrorCode(),
-                    errorPacket.getSqlState());
+                errorPacket.getSqlState());
         }
         return new GreetingPacket(initialHandshakePacket);
     }
@@ -700,7 +689,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
     }
 
     private void ensureEventDataDeserializerIfPresent(EventType eventType,
-            Class<? extends EventDataDeserializer<?>> eventDataDeserializerClass) {
+                                                      Class<? extends EventDataDeserializer<?>> eventDataDeserializerClass) {
         EventDataDeserializer<?> eventDataDeserializer = eventDeserializer.getEventDataDeserializer(eventType);
         if (eventDataDeserializer.getClass() != eventDataDeserializerClass &&
             eventDataDeserializer.getClass() != EventDataWrapper.Deserializer.class) {
@@ -762,7 +751,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
     }
 
     private void switchAuthentication(final PacketChannel channel, byte[] authenticationResult, boolean usingSSLSocket)
-            throws IOException {
+        throws IOException {
         /*
             Azure-MySQL likes to tell us to switch authentication methods, even though
             we haven't advertised that we support any.  It uses this for some-odd
@@ -791,6 +780,27 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
         }
     }
 
+    /**
+     * 这个方法的主要作用是什么呢？
+     * <p>
+     * （1）创建一个线程池，将这个线程池赋值给成员属性keepAliveThreadExecutor，因为调用该方法的地方，将方法的返回值赋值给了keepAliveThreadExecutor
+     * （2）线程池中有一个任务，这个任务的逻辑是 先判断当前线程池是否关闭，如果没有关闭则 等待60s，然后发送一个ping消息，如果ping消息发送失败则表示与mysql服务器的
+     * 连接断开， if (connectionLost)为true，然后重新执行connect
+     * 因此当binlog线程 因为mysql重启而断开连接，此时binlog线程无法从mysql接收到数据，因此binlog线程退出。然后由于存在keepAliveThreadExecutor线程池
+     * 因此会尝试重新建立连接
+     * <p>
+     * 因此BinaryLogClient 的connect方法 在进行连接的时候 会创建一个线程池用于保证连接正常。
+     * <p>
+     * 问题：当listenForEventPackets 因为异常退出while的时候 在listen方法的最后会执行finally，在finally中
+     * 判断如果Client的connected标识为true 则会调用disConnected方法，关键是在disConnected方法中会通过
+     * terminateKeepAliveThread(keepAliveThreadExecutor);方法来终止keepAliveThreadExecutor线程池
+     * <p>
+     * 也就是说：当connect线程（读取binlog的线程）退出的时候也会 终止keepAliveThread线程池，那么keepAliveThread线程池
+     * 又怎么会有机会 进行重试连接呢？
+     *
+     * @param connectTimeout
+     * @return
+     */
     private ExecutorService spawnKeepAliveThread(final long connectTimeout) {
         final ExecutorService threadExecutor =
             Executors.newSingleThreadExecutor(new ThreadFactory() {
@@ -830,7 +840,9 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
                             logger.info("Trying to restore lost connection to " + hostname + ":" + port);
                         }
                         try {
+                            //尝试重新连接之前 为什么要调用 terminateConnect
                             terminateConnect();
+
                             connect(connectTimeout);
                         } catch (Exception ce) {
                             if (logger.isLoggable(Level.WARNING)) {
@@ -857,13 +869,16 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     /**
      * Connect to the replication stream in a separate thread.
+     * 这个方法不会阻塞当前线程，然后会启动另外的一个线程 进行connect 读取数据并调用listener
+     *
      * @param timeout timeout in milliseconds
      * @throws AuthenticationException if authentication fails
-     * @throws ServerException if MySQL server responds with an error
-     * @throws IOException if anything goes wrong while trying to connect
-     * @throws TimeoutException if client was unable to connect within given time limit
+     * @throws ServerException         if MySQL server responds with an error
+     * @throws IOException             if anything goes wrong while trying to connect
+     * @throws TimeoutException        if client was unable to connect within given time limit
      */
     public void connect(final long timeout) throws IOException, TimeoutException {
+
         final CountDownLatch countDownLatch = new CountDownLatch(1);
         AbstractLifecycleListener connectListener = new AbstractLifecycleListener() {
             @Override
@@ -873,6 +888,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
         };
         registerLifecycleListener(connectListener);
         final AtomicReference<IOException> exceptionReference = new AtomicReference<IOException>();
+        //使用另外的线程进行connect，当前线程被阻塞countDownLatch.await等待指定的时间
         Runnable runnable = new Runnable() {
 
             @Override
@@ -888,6 +904,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
         newNamedThread(runnable, "blc-" + hostname + ":" + port).start();
         boolean started = false;
         try {
+            //阻塞等待 blc线程的  连接成功，connect成功之后会调用countDownLat的countDown方法，放行await
             started = countDownLatch.await(timeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             if (logger.isLoggable(Level.WARNING)) {
@@ -914,6 +931,9 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
     }
 
     /**
+     * 问题： 这里通过connectLatch 不为null 来判断是否connected 逻辑上没问题吗？
+     * 首先 在connect方法中（connect中调用了connectWithTimeOut），创建了一个CountDownLath 将其赋值给 connectLath
+     *
      * @return true if client is connected, false otherwise
      */
     public boolean isConnected() {
@@ -965,7 +985,9 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
         ByteArrayInputStream inputStream = channel.getInputStream();
         boolean completeShutdown = false;
         try {
+            //peek方法是调用了InputStream的read方法，InputStream的read方法每次读取一个字节，返回值是int类型，返回值的范围是0-255.当读取到流的末尾时返回-1
             while (inputStream.peek() != -1) {
+                //readInteger 内部调用了InputStream的read方法，read方法是一个阻塞方法
                 int packetLength = inputStream.readInteger(3);
                 //noinspection ResultOfMethodCallIgnored
                 inputStream.skip(1); // 1 byte for sequence
@@ -985,6 +1007,8 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
                         new ByteArrayInputStream(readPacketSplitInChunks(inputStream, packetLength - 1)) :
                         inputStream);
                     if (event == null) {
+                        //当输入过程中意外到达文件或流的末尾时，抛出此异常。这个异常主要被数据输入流来表明到达流的末尾。注意，其他许多输入操作
+                        //返回一个特殊值表示到达流的末尾，而不是抛出异常。名字也是END OF FILE的缩写，当然也表示流的末尾
                         throw new EOFException();
                     }
                 } catch (Exception e) {
@@ -1002,6 +1026,15 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
                 if (connected) {
                     eventLastSeen = System.currentTimeMillis();
                     updateGtidSet(event);
+                    /**
+                     * 调用listener处理数据。
+                     * 注意，从这里我们看到了 connect方法所在的线程 首先是通过while循环读取数据，然后将读取到的数据交给listener处理
+                     * 因此listener和connect方法处于同一个线程中。
+                     *
+                     * 在EmbeddedEngine的实现中，Engine创建了Task，task内部调用了BinaryLogClient的connect（long timeout）方法
+                     * 但是这个connect方法是在另外一个线程中被调用的，导致Debezium的Listener的执行 和task的执行所在的线程不同。
+                     *
+                     */
                     notifyEventListeners(event);
                     updateClientBinlogFilenameAndPosition(event);
                 }
@@ -1013,10 +1046,38 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
                 }
             }
         } finally {
+            /**
+             * 问题： 什么时候connected置为false
+             * com.github.shyiko.mysql.binlog.BinaryLogClient#closeChannel(com.github.shyiko.mysql.binlog.network.protocol.PacketChannel)
+             *
+             * if(connected)表示当前连接的标记 是true，但是从上面我们知道 当连接断开的时候会执行这里的finally
+             * 此时需要将连接标示位 connected设置为false，设置为false的前提是connected本身为true
+             */
             if (connected) {
+                /**
+                 * 问题：1 completeShutDown有什么作用？
+                 * 2.disConnect和closeChannel 有什么区别？
+                 * 3. 如果重启Mysql服务器导致连接断开将会执行哪个
+                 *
+                 * 先解释第二个问题： 两者有什么区别：closeChannel内部将连接标识connected设置为false，同时关闭了channel
+                 * disconnect 方法内部 关掉了keepAliveThreadExecutor 线程池，导致binlog读取的connect线程退出之后 不会再进行尝试重新连接
+                 * 同时disConnect内部还会closeChannel，以及调用成员属性connectLatch的await方法进行阻塞等待
+                 *
+                 * 3.服务器重启的时候 导致连接断开，会执行closeChannel，因为closeChannel内部会不关闭keepAliveThreadExecutor线程池，因此BinlogClient会通过发送ping
+                 * 判断连接是否正常，如果发现连接断开则尝试重新连接。
+                 *
+                 * 1.completeShutDown 只有在读取到 marker == 0xFE && !blocking的时候才是true，猜测completeShutdown表示是否是正常退出
+                 *
+                 */
                 if (completeShutdown) {
+                    //连接断开，
+                    /**
+                     * （1）disconnec 方法调用了closeChannel，因此connected会被置为false，连接标识被标示位断开
+                     *
+                     */
                     disconnect(); // initiate complete shutdown sequence (which includes keep alive thread)
                 } else {
+                    //在closeChannel中将connected设置为false
                     closeChannel(channel);
                 }
             }
@@ -1044,15 +1105,15 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
             binlogFilename = rotateEventData.getBinlogFilename();
             binlogPosition = rotateEventData.getBinlogPosition();
         } else
-        // do not update binlogPosition on TABLE_MAP so that in case of reconnect (using a different instance of
-        // client) table mapping cache could be reconstructed before hitting row mutation event
-        if (eventType != EventType.TABLE_MAP && eventHeader instanceof EventHeaderV4) {
-            EventHeaderV4 trackableEventHeader = (EventHeaderV4) eventHeader;
-            long nextBinlogPosition = trackableEventHeader.getNextPosition();
-            if (nextBinlogPosition > 0) {
-                binlogPosition = nextBinlogPosition;
+            // do not update binlogPosition on TABLE_MAP so that in case of reconnect (using a different instance of
+            // client) table mapping cache could be reconstructed before hitting row mutation event
+            if (eventType != EventType.TABLE_MAP && eventHeader instanceof EventHeaderV4) {
+                EventHeaderV4 trackableEventHeader = (EventHeaderV4) eventHeader;
+                long nextBinlogPosition = trackableEventHeader.getNextPosition();
+                if (nextBinlogPosition > 0) {
+                    binlogPosition = nextBinlogPosition;
+                }
             }
-        }
     }
 
     private void updateGtidSet(Event event) {
@@ -1062,7 +1123,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
             }
         }
         EventHeader eventHeader = event.getHeader();
-        switch(eventHeader.getEventType()) {
+        switch (eventHeader.getEventType()) {
             case GTID:
                 GtidEventData gtidEventData = (GtidEventData) EventDataWrapper.internal(event.getData());
                 gtid = gtidEventData.getGtid();
@@ -1079,12 +1140,10 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
                 }
                 if ("BEGIN".equals(sql)) {
                     tx = true;
-                } else
-                if ("COMMIT".equals(sql) || "ROLLBACK".equals(sql)) {
+                } else if ("COMMIT".equals(sql) || "ROLLBACK".equals(sql)) {
                     commitGtid();
                     tx = false;
-                } else
-                if (!tx) {
+                } else if (!tx) {
                     // auto-commit query, likely DDL
                     commitGtid();
                 }
@@ -1107,7 +1166,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
             byte[] bytes = Arrays.copyOfRange(statementResult, 1, statementResult.length);
             ErrorPacket errorPacket = new ErrorPacket(bytes);
             throw new ServerException(errorPacket.getErrorMessage(), errorPacket.getErrorCode(),
-                    errorPacket.getSqlState());
+                errorPacket.getSqlState());
         }
         while ((channel.read())[0] != (byte) 0xFE /* eof */) { /* skip */ }
         for (byte[] bytes; (bytes = channel.read())[0] != (byte) 0xFE /* eof */; ) {
@@ -1135,7 +1194,7 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
      * Unregister all event listener of specific type.
      */
     public void unregisterEventListener(Class<? extends EventListener> listenerClass) {
-        for (EventListener eventListener: eventListeners) {
+        for (EventListener eventListener : eventListeners) {
             if (listenerClass.isInstance(eventListener)) {
                 eventListeners.remove(eventListener);
             }
@@ -1206,11 +1265,17 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
         connectLock.lock();
         ExecutorService keepAliveThreadExecutor = this.keepAliveThreadExecutor;
         PacketChannel channel = this.channel;
+        //在connect方法中创建了一个CountDownLath 赋值给成员属性connectLatch，
+        //这里将成员数据复制个connectLatch，然后交个后面的wait方法，在wait方法中调用了CountDownLath的await方法
         CountDownLatch connectLatch = this.connectLatch;
         connectLock.unlock();
 
+        //terminateKeepAliveThread方法是一个阻塞方法，
         terminateKeepAliveThread(keepAliveThreadExecutor);
         closeChannel(channel);
+        //内部调用了 成员属性 connectLath.await ，为什么要调用这个方法？
+        //调用await方法将会使得当前线程一一直 阻塞，直到其他线程调用了connectLath的countDown方法
+        //这里为什么要等待其他线程调用connectLatch的countDown方法？
         waitForConnectToTerminate(connectLatch);
     }
 
@@ -1218,14 +1283,34 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
         if (threadExecutor == null) {
             return;
         }
+        /***
+         * 尝试停止所有正在积极执行的任务，停止等待任务的处理，并返回一个正在等待执行的任务列表。
+         * 此方法不等待主动执行的任务终止。使用awaitTermination来完成此操作。
+         * 除了尽最大努力停止积极执行任务的处理外，没有任何保证。例如，典型的实现将通过Thread.interrupt取消，因此任何未能响应中断的任务可能永远不会终止。
+         */
         threadExecutor.shutdownNow();
+        //阻塞直到所有任务在关机请求后完成执行，或超时发生，或当前线程被中断(以先发生者为准)。
         while (!awaitTerminationInterruptibly(threadExecutor, Long.MAX_VALUE, TimeUnit.NANOSECONDS)) { /* retry */ }
     }
 
+    /**
+     * 阻塞等待线程池中的所有任务都执行完成
+     * @param executorService
+     * @param timeout
+     * @param unit
+     * @return
+     */
     @SuppressWarnings("SameParameterValue")
     private static boolean awaitTerminationInterruptibly(final ExecutorService executorService,
-            final long timeout, final TimeUnit unit) {
+                                                         final long timeout, final TimeUnit unit) {
         try {
+            /**
+             *  Blocks until all tasks have completed execution after a shutdown
+             *      * request, or the timeout occurs, or the current thread is
+             *      * interrupted, whichever happens first.
+             *      阻塞直到所有任务在关机请求后完成执行，或超时发生，或当前线程被中断(以先发生者为准)。
+             *      问题：awaitTermination是等待任务执行完成，这些任务是哪些任务： 已经开始的，还未开始的？
+             */
             return executorService.awaitTermination(timeout, unit);
         } catch (InterruptedException e) {
             return false;
@@ -1239,6 +1324,9 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
         connectLock.unlock();
 
         closeChannel(channel);
+        //内部调用了 成员属性 connectLath.await ，为什么要调用这个方法？
+        //调用await方法将会使得当前线程一一直 阻塞，直到其他线程调用了connectLath的countDown方法
+        //这里为什么要等待其他线程调用connectLatch的countDown方法？
         waitForConnectToTerminate(connectLatch);
     }
 
@@ -1250,8 +1338,11 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
 
     @SuppressWarnings("SameParameterValue")
     private static boolean awaitInterruptibly(final CountDownLatch countDownLatch,
-            final long time, final TimeUnit unit) {
+                                              final long time, final TimeUnit unit) {
         try {
+            //如果是因为CountDownLath为0 await才返回的，那么此时await返回值为true
+            //如果是因为等待超时而返回的 await返回false
+            //countDownlath 在哪里调用了countDown呢？
             return countDownLatch.await(time, unit);
         } catch (InterruptedException e) {
             return false;
@@ -1306,13 +1397,17 @@ public class BinaryLogClient implements BinaryLogClientMXBean {
      */
     public static abstract class AbstractLifecycleListener implements LifecycleListener {
 
-        public void onConnect(BinaryLogClient client) { }
+        public void onConnect(BinaryLogClient client) {
+        }
 
-        public void onCommunicationFailure(BinaryLogClient client, Exception ex) { }
+        public void onCommunicationFailure(BinaryLogClient client, Exception ex) {
+        }
 
-        public void onEventDeserializationFailure(BinaryLogClient client, Exception ex) { }
+        public void onEventDeserializationFailure(BinaryLogClient client, Exception ex) {
+        }
 
-        public void onDisconnect(BinaryLogClient client) { }
+        public void onDisconnect(BinaryLogClient client) {
+        }
 
     }
 
